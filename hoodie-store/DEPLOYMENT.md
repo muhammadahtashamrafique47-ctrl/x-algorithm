@@ -17,7 +17,11 @@ Next.js is built by Vercel; this app deploys with zero configuration and the
 free tier does not expire, needs no credit card, and includes HTTPS, a global
 CDN and automatic preview deployments per pull request.
 
-**~3 minutes:**
+**One click:** [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuhammadahtashamrafique47-ctrl%2Fx-algorithm%2Ftree%2Fmain%2Fhoodie-store&project-name=hoodie-store&env=NEXT_PUBLIC_SITE_URL&envDescription=Canonical%20origin%20baked%20in%20at%20build%20time%20%28your%20%2A.vercel.app%20URL%20or%20custom%20domain%29)
+
+That link imports the repo with the root directory pre-set to `hoodie-store` and
+asks for the one environment variable. If you would rather click through the
+dashboard, it is the same three minutes:
 
 1. Go to <https://vercel.com/signup> → **Continue with GitHub**.
 2. <https://vercel.com/new> → import `x-algorithm`.
