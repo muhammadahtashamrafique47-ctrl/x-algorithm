@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1500">
+  <rect width="1200" height="1500" fill="#f3f1ec"/>
+  <path d="M420 1080V700a180 180 0 0 1 360 0v380h-110V780a70 70 0 0 0-140 0v300z" fill="#dcd8cf"/>
+  <text x="600" y="1240" font-family="Helvetica, Arial, sans-serif" font-size="44" fill="#8b8f96" text-anchor="middle">Image pending</text>
+</svg>
