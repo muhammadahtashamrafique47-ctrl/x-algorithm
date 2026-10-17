@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { publishedProducts } from "@/lib/commerce/catalog";
-import { breadcrumbSchema, faqSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, faqSchema, withOrigin } from "@/lib/seo/schema";
 import { unique } from "@/lib/seo/text";
 
 export const metadata: Metadata = {
@@ -41,12 +42,13 @@ const FAQ = [
 
 export default async function FabricCarePage() {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const products = publishedProducts();
   const weights = unique(products.map((p) => p.weightGsm ?? 0).filter(Boolean)).sort((a, b) => a - b);
 
   return (
     <>
-      <JsonLd data={[breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Fabric & care", href: "/fabric-care" }]), faqSchema(FAQ)]} />
+      <JsonLd data={withOrigin(siteOrigin, () => [breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Fabric & care", href: "/fabric-care" }]), faqSchema(FAQ)])} />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link> <span aria-hidden="true">/</span>

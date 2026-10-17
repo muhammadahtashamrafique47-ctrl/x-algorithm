@@ -22,13 +22,18 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@/components"],
   },
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/favicon.svg" }];
+  },
   async headers() {
     return [
       {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // Framing policy (Content-Security-Policy: frame-ancestors) is set per
+          // request in src/proxy.ts — the allowed ancestors depend on the host
+          // the request arrived on, which a static header cannot know.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
         ],

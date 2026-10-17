@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL } from "@/lib/i18n/markets";
+import { requestOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
  * parameterised surfaces are blocked so crawl budget is spent on indexable
  * pages, and the sitemap is advertised for every major crawler.
  */
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const siteOrigin = await requestOrigin();
+
   return {
     rules: [
       {
@@ -31,7 +33,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/cart", "/checkout"],
       },
     ],
-    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/feeds/products.xml`],
-    host: SITE_URL,
+    sitemap: [`${siteOrigin}/sitemap.xml`, `${siteOrigin}/feeds/products.xml`],
+    host: siteOrigin,
   };
 }

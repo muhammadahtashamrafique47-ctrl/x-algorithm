@@ -5,10 +5,13 @@
   "description": "AI-SEO optimized hoodie commerce platform",
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
+    "predev": "node scripts/preview-env.mjs",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3000",
+    "prebuild": "node scripts/preview-env.mjs",
+    "start": "node scripts/serve.mjs",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:ipv4": "next start -H 0.0.0.0 -p 3000"
   },
   "dependencies": {
     "next": "^16.4.2",

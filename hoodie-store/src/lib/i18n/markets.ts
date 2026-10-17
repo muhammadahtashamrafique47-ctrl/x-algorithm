@@ -201,7 +201,15 @@ export const SERVED_LOCALES: Locale[] = (
 
 export const DEFAULT_LOCALE = process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? "en-US";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+/**
+ * Canonical origin for sitemap, hreflang, JSON-LD and OG tags.
+ *
+ * The fallback is deliberately NOT localhost: an absolute http://localhost:3000
+ * URL in a canonical or OG image resolves against whoever is *viewing* the page,
+ * so it silently breaks previews, social cards and any proxied deployment. Set
+ * NEXT_PUBLIC_SITE_URL for the real domain.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://northloop.example").replace(/\/$/, "");
 export const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME ?? "Northloop Supply Co.";
 export const BRAND_SHORT = process.env.NEXT_PUBLIC_BRAND_SHORT?.trim() || BRAND_NAME.replace(/\s+(Supply|Co|Company|Ltd|Inc|Group).*/i, "").trim() || BRAND_NAME;
 export const BRAND_TAGLINE =

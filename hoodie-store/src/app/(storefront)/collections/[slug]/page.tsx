@@ -3,16 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { findCollection, publishedProducts, priceStats } from "@/lib/commerce/catalog";
 import { getCollections } from "@/lib/store/db";
-import { breadcrumbSchema, collectionPageSchema, faqSchema, itemListSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, collectionPageSchema, faqSchema, itemListSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME } from "@/lib/i18n/markets";
 import { titleCase, unique } from "@/lib/seo/text";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const collection = findCollection(slug);
   if (!collection) return { title: "Collection not found", robots: { index: false, follow: false } };
 
@@ -33,6 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const siteOrigin = await requestOrigin();
   const { slug } = await params;
   await ensureCatalogue();
   const collection = findCollection(slug);
@@ -70,7 +73,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
   return (
     <>
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           collectionPageSchema(collection, products),
           breadcrumbSchema([
             { name: "Home", href: "/" },
@@ -79,7 +82,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
           ]),
           itemListSchema(collection.name, products.map((p) => ({ name: p.title, href: `/shop/${p.slug}` })), collection.description),
           faqSchema(faq),
-        ]}
+        ])}
       />
 
       <div className="container section-tight">

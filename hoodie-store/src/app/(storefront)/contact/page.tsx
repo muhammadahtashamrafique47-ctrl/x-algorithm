@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
-import { breadcrumbSchema, organizationSchema } from "@/lib/seo/schema";
+import { requestOrigin } from "@/lib/request-origin";
+import { breadcrumbSchema, organizationSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/i18n/markets";
 
 export const metadata: Metadata = {
@@ -11,10 +12,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const siteOrigin = await requestOrigin();
   return (
     <>
-      <JsonLd data={[organizationSchema(), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Contact", href: "/contact" }])]} />
+      <JsonLd data={withOrigin(siteOrigin, () => [organizationSchema(), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Contact", href: "/contact" }])])} />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link> <span aria-hidden="true">/</span>

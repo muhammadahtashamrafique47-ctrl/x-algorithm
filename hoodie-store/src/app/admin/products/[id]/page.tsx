@@ -9,7 +9,7 @@ import { cannibalizationRisks, findSimilar } from "@/lib/seo/internal";
 import { marketOpportunities, serpLandscape, trafficForecast } from "@/lib/seo/external";
 import { aiStatus } from "@/lib/seo/ai/provider";
 import { formatUsd, inventoryHealth } from "@/lib/commerce/product-utils";
-import { SITE_URL } from "@/lib/i18n/markets";
+import { requestOrigin } from "@/lib/request-origin";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 export default async function AdminProductEditor({ params }: { params: Promise<{ id: string }> }) {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const { id } = await params;
   const product = getAllProducts().find((p) => p.id === id || p.slug === id);
   if (!product) notFound();
@@ -115,7 +116,7 @@ export default async function AdminProductEditor({ params }: { params: Promise<{
               <div className="serp">
                 <div className="url">
                   <span className="favicon">NL</span>
-                  <span className="crumb">{new URL(SITE_URL).hostname} › shop › {product.slug}</span>
+                  <span className="crumb">{new URL(siteOrigin).hostname} › shop › {product.slug}</span>
                 </div>
                 <div className="title">{seo.seoTitle}</div>
                 <div className="desc">{seo.metaDescription}</div>

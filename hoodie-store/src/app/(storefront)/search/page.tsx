@@ -3,12 +3,13 @@ import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
 import { SearchAttribution } from "@/components/SearchAttribution";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { searchEverything } from "@/lib/commerce/catalog";
 import { logSearch } from "@/lib/store/db";
 import { suggestKeywords } from "@/lib/seo/keywords";
 import { getSearchLog } from "@/lib/store/db";
-import { breadcrumbSchema, itemListSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, itemListSchema, withOrigin } from "@/lib/seo/schema";
 
 type Search = { q?: string };
 
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
 export default async function SearchPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { q } = await searchParams;
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const query = (q ?? "").trim();
 
   if (query.length >= 3) {

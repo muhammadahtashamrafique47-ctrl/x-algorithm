@@ -34,8 +34,17 @@ Production:
 
 ```bash
 npm run build
-npm start                       # binds 0.0.0.0:3000
+npm start                       # binds dual-stack [::]:3000
 ```
+
+`npm start` runs `scripts/serve.mjs`, which binds the IPv6 wildcard `::`. With
+the Linux default `net.ipv6.bindv6only=0` that single socket is **dual-stack**,
+so it answers `::1`, `127.0.0.1` and the container's routable addresses alike.
+This matters more than it sounds: on images where `localhost` resolves to `::1`
+first, a server bound only to `0.0.0.0` refuses the proxy's connection and the
+preview reports **502 Bad Gateway** while `curl 127.0.0.1:3000` happily returns
+200. If IPv6 is unavailable the launcher falls back to `0.0.0.0`; `npm run
+start:ipv4` forces IPv4 explicitly.
 
 Other commands: `npm run typecheck` (tsc), `npm run lint`.
 
@@ -49,7 +58,10 @@ scratch, or use **Admin → Reset demo data**.
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical origin for sitemap, hreflang, JSON-LD, OG tags |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin used when seeding/optimizing listings (stored in hreflang + localizations). **Inlined at build time** — set it before `npm run build`. Falls back to `https://northloop.example`, never `localhost` |
+| `FRAME_ANCESTORS` | Overrides the auto-detected `Content-Security-Policy: frame-ancestors` value; `off` omits the header. Default is host-aware (see below) |
+| `ALLOW_HTTP_ORIGIN` | `1` to honour an `x-forwarded-proto: http` hop on a public hostname (default: public hosts are always https) |
+| `CORS_ORIGINS` | Cross-origin callers allowed to fetch the API: `*`, or a comma-separated origin list (`*.example.com` wildcards ok). Unset = sandbox/loopback hosts only |
 | `NEXT_PUBLIC_BRAND_NAME` / `NEXT_PUBLIC_BRAND_SHORT` | Brand in copy; short form used in title tags |
 | `NEXT_PUBLIC_MARKET_LOCALES` | Locales you actually serve → drives hreflang alternates |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | Contact + Organization schema |
@@ -57,6 +69,69 @@ scratch, or use **Admin → Reset demo data**.
 | `SEO_AI_API_KEY`, `SEO_AI_MODEL`, `SEO_AI_BASE_URL`, `SEO_AI_TIMEOUT_MS` | Cloud refinement stage |
 | `SEO_MIN_CONTENT_WORDS` | Minimum body depth the rubric accepts (default 320) |
 | `SEO_AUTO_OPTIMIZE_ON_CREATE` | Optimize on upload without asking (default true) |
+
+### Origins & embedding
+
+Every absolute URL the site emits — canonical, hreflang cluster, `og:url`,
+`og:image`, `twitter:image`, JSON-LD `@id`/`url`/`image`, `sitemap.xml`,
+`robots.txt` (`Host:` + `Sitemap:`), the product feed and the web app manifest —
+is resolved per request by `src/lib/request-origin.ts`:
+
+1. the configured `NEXT_PUBLIC_SITE_URL` wins when it already points at the host
+   this request arrived on (it carries the scheme the operator intended);
+2. otherwise the `x-forwarded-host`/`host` header is used, over **https** for
+   public hostnames (a bare `x-forwarded-proto: http` is normally just the local
+   proxy hop);
+3. loopback hosts and a missing request scope fall back to `SITE_URL`.
+
+Two consequences worth knowing:
+
+- **`localhost` never appears in output.** An absolute `http://localhost:3000`
+  in a canonical or OG image resolves against whoever is *viewing* the page, so
+  it silently breaks previews, tunnels and social cards. The old default did
+  exactly that; the fallback is now a real hostname.
+- **Stored hreflang URLs are rebased at render time.** SEO profiles persist
+  absolute alternates, so if the host changes after a listing was optimized,
+  `rebase()` rewrites them onto the live origin instead of leaking a dead host.
+
+`scripts/preview-env.mjs` (wired as `predev`/`prebuild`) writes the sandbox
+preview origin into `.env.local` when `E2B_SANDBOX_ID` is set, because
+`NEXT_PUBLIC_*` values are frozen at build time and the preview host changes
+whenever the sandbox is recycled. It is a no-op elsewhere and never overwrites a
+configured real domain.
+
+**Framing is decided per request** (`src/proxy.ts`), because a static header
+cannot know who is allowed to embed the site: a preview, tunnel or staging
+wrapper frames the app from a *different* origin than the one it is served on,
+and the browser then paints a blank frame even though every route returns 200.
+
+| Host the request arrived on | `Content-Security-Policy` |
+| --- | --- |
+| sandbox host (`*.e2b.app`) or loopback | `frame-ancestors *` — embedding is the point |
+| any other (real) domain | `frame-ancestors 'self'` — clickjacking-safe |
+| `FRAME_ANCESTORS` set | that value verbatim; `off` omits the header |
+
+`X-Frame-Options` is never sent: it cannot allowlist other origins, which is what
+made the site unrenderable in the preview. Only `frame-ancestors` is sent — a full
+CSP with `script-src` would break Next.js inline hydration scripts.
+
+The same proxy answers `OPTIONS` with `204`. App Router *pages* otherwise reply to
+a probe with a bare `400`, which reads as a broken deployment to any harness that
+checks the app before framing it. `/favicon.ico` is rewritten to the shipped SVG
+mark so browsers stop logging a 404 on every page load.
+
+**Cross-origin fetches are handled the same way.** A preview harness that reaches
+the sandbox through a gateway with an access token (E2B's
+`e2b-traffic-access-token`, for instance) cannot attach that header to an iframe
+navigation, so it fetches instead — and a cross-origin fetch with a custom header
+triggers a preflight. A `204` with no CORS headers fails that preflight and shows
+up as a blank preview, so on sandbox/loopback hosts (or for any origin named in
+`CORS_ORIGINS`) the proxy reflects `Access-Control-Allow-Origin`, allows the
+requested headers verbatim and advertises the usual methods.
+`Access-Control-Allow-Credentials` is never sent: this exposes public catalogue
+data, never a session. On a real domain the default stays closed — no CORS
+headers at all unless `CORS_ORIGINS` opts a caller in.
+
 
 ---
 
@@ -301,6 +376,15 @@ datastore — importing `node:fs` into a client graph is a hard Turbopack error.
 ---
 
 ## 12. Production hardening checklist
+
+- [ ] **Answer preflights.** `OPTIONS` returns 204 with CORS headers on
+      preview/sandbox hosts (or those named in `CORS_ORIGINS`), including the
+      gateway's own token header — a bare 204 fails the preflight and blanks the
+      preview. `Access-Control-Allow-Credentials` is deliberately never sent.
+- [ ] **Bind both IP stacks.** `npm start` binds `::` (dual-stack). An
+      IPv4-only listener silently 502s behind any proxy that resolves
+      `localhost` to `::1` first — verify with `curl -6 http://[::1]:3000/`
+      *and* `curl -4 http://127.0.0.1:3000/`.
 
 Not implemented here, deliberately, because they need accounts and secrets:
 

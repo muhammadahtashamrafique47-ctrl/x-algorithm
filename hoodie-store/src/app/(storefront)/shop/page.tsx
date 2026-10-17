@@ -3,9 +3,10 @@ import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
 import { SearchAttribution } from "@/components/SearchAttribution";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { facetCounts, filterProducts, paginate, priceStats, publishedProducts, type SortKey } from "@/lib/commerce/catalog";
-import { breadcrumbSchema, itemListSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, itemListSchema, withOrigin } from "@/lib/seo/schema";
 import { getCollections } from "@/lib/store/db";
 import { BRAND_NAME, SITE_URL } from "@/lib/i18n/markets";
 import { suggestKeywords } from "@/lib/seo/keywords";
@@ -26,6 +27,7 @@ type Search = {
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Search> }): Promise<Metadata> {
   const params = await searchParams;
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const collection = params.collection ? getCollections().find((c) => c.slug === params.collection) : undefined;
   const products = publishedProducts();
   const stats = priceStats(products);
@@ -73,6 +75,7 @@ const SORTS: { key: SortKey; label: string }[] = [
 ];
 
 export default async function ShopPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const siteOrigin = await requestOrigin();
   const params = await searchParams;
   await ensureCatalogue();
 
@@ -112,7 +115,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
     <>
       {params.q ? <SearchAttribution query={params.q} /> : null}
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           breadcrumbSchema([
             { name: "Home", href: "/" },
             ...(activeCollection ? [{ name: "Hoodies", href: "/shop" }, { name: activeCollection.name, href: `/collections/${activeCollection.slug}` }] : [{ name: "Hoodies", href: "/shop" }]),
@@ -122,7 +125,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
             filtered.map((product) => ({ name: product.title, href: `/shop/${product.slug}` })),
             activeCollection?.description ?? `All ${filtered.length} hoodie styles from ${BRAND_NAME}.`,
           ),
-        ]}
+        ])}
       />
 
       <div className="container section-tight">
@@ -336,7 +339,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
             <Link href="/size-guide">size guide</Link> for how each block measures.
           </p>
           <p className="muted small">
-            Canonical URL for this catalogue: {SITE_URL}/shop · {all.length} indexable product pages · updated{" "}
+            Canonical URL for this catalogue: {siteOrigin}/shop · {all.length} indexable product pages · updated{" "}
             {new Date().toISOString().slice(0, 10)}
           </p>
         </div>

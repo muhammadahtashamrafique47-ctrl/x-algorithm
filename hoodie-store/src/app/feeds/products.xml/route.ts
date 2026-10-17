@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { getAllProducts } from "@/lib/store/db";
-import { SITE_URL, BRAND_NAME } from "@/lib/i18n/markets";
+import { BRAND_NAME } from "@/lib/i18n/markets";
+import { requestOrigin } from "@/lib/request-origin";
 import { inventoryHealth } from "@/lib/seo/internal";
 import { priceBandFor } from "@/lib/seo/external";
 
@@ -25,6 +26,7 @@ const escapeXml = (value: string) =>
  */
 export async function GET() {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const products = getAllProducts().filter((p) => p.status === "published");
 
   const items = products
@@ -32,7 +34,7 @@ export async function GET() {
       const stock = inventoryHealth(product);
       const band = priceBandFor(product);
       const availability = stock.outOfStock ? "out of stock" : stock.lowStock ? "preorder" : "in stock";
-      const images = product.images.map((image) => `${SITE_URL}${image.src}`);
+      const images = product.images.map((image) => `${siteOrigin}${image.src}`);
       const primaryKeyword = product.seo?.keywords?.[0]?.term ?? "hoodie";
 
       return `    <item>
@@ -40,8 +42,8 @@ export async function GET() {
       <g:item_group_id>${escapeXml(product.id)}</g:item_group_id>
       <title>${escapeXml(product.seo?.seoTitle || product.title)}</title>
       <g:description>${escapeXml(product.seo?.metaDescription || product.description)}</g:description>
-      <link>${SITE_URL}/shop/${escapeXml(product.slug)}</link>
-      <g:image_link>${escapeXml(images[0] ?? `${SITE_URL}/images/site/placeholder.jpg`)}</g:image_link>
+      <link>${siteOrigin}/shop/${escapeXml(product.slug)}</link>
+      <g:image_link>${escapeXml(images[0] ?? `${siteOrigin}/images/site/placeholder.jpg`)}</g:image_link>
 ${images.slice(1).map((image) => `      <g:additional_image_link>${escapeXml(image)}</g:additional_image_link>`).join("\n")}
       <g:availability>${availability}</g:availability>
       <g:price>${product.price.toFixed(2)} ${product.currency}</g:price>
@@ -75,7 +77,7 @@ ${product.compareAtPrice ? `      <g:sale_price>${product.price.toFixed(2)} ${pr
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
     <title>${escapeXml(BRAND_NAME)} product feed</title>
-    <link>${SITE_URL}</link>
+    <link>${siteOrigin}</link>
     <description>AI-optimized hoodie catalogue with full product data for Merchant Center and Shopping campaigns.</description>
     <g:feed_label>US</g:feed_label>
     <g:content_language>en</g:content_language>

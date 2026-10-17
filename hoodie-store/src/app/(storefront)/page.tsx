@@ -3,9 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { bestsellers, highestScored, publishedProducts } from "@/lib/commerce/catalog";
 import { getCollections, getArticles } from "@/lib/store/db";
-import { breadcrumbSchema, faqSchema, itemListSchema, websiteSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, faqSchema, itemListSchema, websiteSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME, MARKETS } from "@/lib/i18n/markets";
 import { priceBandFor, upcomingEvents, marketOpportunities } from "@/lib/seo/external";
 import { unique } from "@/lib/seo/text";
@@ -49,7 +50,8 @@ const SITE_FAQ = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const siteOrigin = await requestOrigin();
   const products = publishedProducts();
   const best = bestsellers(4);
   const topRated = highestScored(4);
@@ -67,7 +69,7 @@ export default function HomePage() {
   return (
     <>
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           websiteSchema(),
           breadcrumbSchema([{ name: "Home", href: "/" }]),
           itemListSchema(
@@ -76,7 +78,7 @@ export default function HomePage() {
             "The four hoodies our customers buy most, ranked by verified purchases over the last 30 days.",
           ),
           faqSchema(SITE_FAQ),
-        ]}
+        ])}
       />
 
       <section className="container section-tight" style={{ paddingTop: 26 }}>
