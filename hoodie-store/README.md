@@ -50,7 +50,7 @@ scratch, or use **Admin → Reset demo data**.
 | Variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin used when seeding/optimizing listings (stored in hreflang + localizations). **Inlined at build time** — set it before `npm run build`. Falls back to `https://northloop.example`, never `localhost` |
-| `FRAME_ANCESTORS` | Space-separated origins allowed to embed the site in an iframe → emitted as `Content-Security-Policy: frame-ancestors` (default `'self' https://*.e2b.app`) |
+| `FRAME_ANCESTORS` | Overrides the auto-detected `Content-Security-Policy: frame-ancestors` value; `off` omits the header. Default is host-aware (see below) |
 | `ALLOW_HTTP_ORIGIN` | `1` to honour an `x-forwarded-proto: http` hop on a public hostname (default: public hosts are always https) |
 | `NEXT_PUBLIC_BRAND_NAME` / `NEXT_PUBLIC_BRAND_SHORT` | Brand in copy; short form used in title tags |
 | `NEXT_PUBLIC_MARKET_LOCALES` | Locales you actually serve → drives hreflang alternates |
@@ -90,11 +90,25 @@ preview origin into `.env.local` when `E2B_SANDBOX_ID` is set, because
 whenever the sandbox is recycled. It is a no-op elsewhere and never overwrites a
 configured real domain.
 
-Clickjacking protection is expressed as
-`Content-Security-Policy: frame-ancestors` rather than `X-Frame-Options`, which
-cannot allowlist other origins and therefore made the site unrenderable inside
-any cross-origin preview or staging wrapper. Only `frame-ancestors` is sent: a
-full CSP with `script-src` would break Next.js inline hydration scripts.
+**Framing is decided per request** (`src/proxy.ts`), because a static header
+cannot know who is allowed to embed the site: a preview, tunnel or staging
+wrapper frames the app from a *different* origin than the one it is served on,
+and the browser then paints a blank frame even though every route returns 200.
+
+| Host the request arrived on | `Content-Security-Policy` |
+| --- | --- |
+| sandbox host (`*.e2b.app`) or loopback | `frame-ancestors *` — embedding is the point |
+| any other (real) domain | `frame-ancestors 'self'` — clickjacking-safe |
+| `FRAME_ANCESTORS` set | that value verbatim; `off` omits the header |
+
+`X-Frame-Options` is never sent: it cannot allowlist other origins, which is what
+made the site unrenderable in the preview. Only `frame-ancestors` is sent — a full
+CSP with `script-src` would break Next.js inline hydration scripts.
+
+The same proxy answers `OPTIONS` with `204`. App Router *pages* otherwise reply to
+a probe with a bare `400`, which reads as a broken deployment to any harness that
+checks the app before framing it. `/favicon.ico` is rewritten to the shipped SVG
+mark so browsers stop logging a 404 on every page load.
 
 
 ---
