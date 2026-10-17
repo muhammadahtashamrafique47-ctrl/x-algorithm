@@ -61,6 +61,7 @@ scratch, or use **Admin → Reset demo data**.
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin used when seeding/optimizing listings (stored in hreflang + localizations). **Inlined at build time** — set it before `npm run build`. Falls back to `https://northloop.example`, never `localhost` |
 | `FRAME_ANCESTORS` | Overrides the auto-detected `Content-Security-Policy: frame-ancestors` value; `off` omits the header. Default is host-aware (see below) |
 | `ALLOW_HTTP_ORIGIN` | `1` to honour an `x-forwarded-proto: http` hop on a public hostname (default: public hosts are always https) |
+| `CORS_ORIGINS` | Cross-origin callers allowed to fetch the API: `*`, or a comma-separated origin list (`*.example.com` wildcards ok). Unset = sandbox/loopback hosts only |
 | `NEXT_PUBLIC_BRAND_NAME` / `NEXT_PUBLIC_BRAND_SHORT` | Brand in copy; short form used in title tags |
 | `NEXT_PUBLIC_MARKET_LOCALES` | Locales you actually serve → drives hreflang alternates |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | Contact + Organization schema |
@@ -118,6 +119,18 @@ The same proxy answers `OPTIONS` with `204`. App Router *pages* otherwise reply 
 a probe with a bare `400`, which reads as a broken deployment to any harness that
 checks the app before framing it. `/favicon.ico` is rewritten to the shipped SVG
 mark so browsers stop logging a 404 on every page load.
+
+**Cross-origin fetches are handled the same way.** A preview harness that reaches
+the sandbox through a gateway with an access token (E2B's
+`e2b-traffic-access-token`, for instance) cannot attach that header to an iframe
+navigation, so it fetches instead — and a cross-origin fetch with a custom header
+triggers a preflight. A `204` with no CORS headers fails that preflight and shows
+up as a blank preview, so on sandbox/loopback hosts (or for any origin named in
+`CORS_ORIGINS`) the proxy reflects `Access-Control-Allow-Origin`, allows the
+requested headers verbatim and advertises the usual methods.
+`Access-Control-Allow-Credentials` is never sent: this exposes public catalogue
+data, never a session. On a real domain the default stays closed — no CORS
+headers at all unless `CORS_ORIGINS` opts a caller in.
 
 
 ---
@@ -364,6 +377,10 @@ datastore — importing `node:fs` into a client graph is a hard Turbopack error.
 
 ## 12. Production hardening checklist
 
+- [ ] **Answer preflights.** `OPTIONS` returns 204 with CORS headers on
+      preview/sandbox hosts (or those named in `CORS_ORIGINS`), including the
+      gateway's own token header — a bare 204 fails the preflight and blanks the
+      preview. `Access-Control-Allow-Credentials` is deliberately never sent.
 - [ ] **Bind both IP stacks.** `npm start` binds `::` (dual-stack). An
       IPv4-only listener silently 502s behind any proxy that resolves
       `localhost` to `::1` first — verify with `curl -6 http://[::1]:3000/`
