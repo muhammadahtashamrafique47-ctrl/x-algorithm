@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { Article, Collection, Product, TrackEvent } from "@/lib/types";
 
@@ -12,8 +13,40 @@ import type { Article, Collection, Product, TrackEvent } from "@/lib/types";
  */
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
-const RUNTIME_DIR = path.join(DATA_DIR, "runtime");
 const SEED_DIR = path.join(DATA_DIR, "seed");
+
+/**
+ * Where the mutable JSON catalogue lives.
+ *
+ * Serverless platforms (Vercel, Netlify, Cloudflare) mount the deployment
+ * **read-only** and only permit writes under a temp dir, so `writeJson` fails
+ * over to `TMP_FALLBACK_DIR` when the project directory refuses a write, and
+ * degrades to memory-only if that is refused too. Nothing here probes the
+ * filesystem ahead of a real write, and both paths are statically resolvable —
+ * a dynamic (env-derived) path makes Turbopack trace the whole project into the
+ * server bundle, which is what `experimental.outputFileTracing` warns about.
+ *
+ * Hosts with a persistent disk or volume should mount it AT this path (or
+ * symlink it), which is what the Dockerfile does with `/data`:
+ *
+ *   src/data/runtime  -> the JSON catalogue
+ *   public/uploads    -> uploaded product media
+ *
+ * Writes are per-instance and ephemeral on serverless: fine for a demo or a
+ * read-mostly storefront, but a real deployment that must remember uploads needs
+ * the database adapter described in DEPLOYMENT.md.
+ */
+const RUNTIME_DIR = path.join(DATA_DIR, "runtime");
+const TMP_FALLBACK_DIR = "/tmp/hoodie-store-data";
+
+let writesFailedOver = false;
+let warnedAboutFailover = false;
+let warnedAboutWrites = false;
+
+/** The directory writes are currently landing in. */
+function activeDir(): string {
+  return writesFailedOver ? TMP_FALLBACK_DIR : RUNTIME_DIR;
+}
 
 const FILES = {
   products: "products.json",
@@ -31,17 +64,15 @@ function ensureDirs() {
   // mkdirSync({recursive:true}) is idempotent, so there is no need for an
   // existsSync probe — and avoiding the probe keeps Next's file tracer from
   // pulling the whole project into the server bundle.
-  for (const dir of [DATA_DIR, RUNTIME_DIR]) {
-    try {
-      fs.mkdirSync(dir, { recursive: true });
-    } catch {
-      /* already present or read-only: reads below will surface a real failure */
-    }
+  try {
+    fs.mkdirSync(activeDir(), { recursive: true });
+  } catch {
+    /* read-only filesystem: writeJson fails over, then degrades to memory-only */
   }
 }
 
 function runtimePath(file: string) {
-  return path.join(RUNTIME_DIR, file);
+  return path.join(activeDir(), file);
 }
 
 function seedPath(file: string) {
@@ -65,13 +96,61 @@ function readJson<T>(file: string, fallback: T): T {
   return fallback;
 }
 
-/** Atomic write: tmp file + rename, so a crash never leaves a half-written DB. */
+/** Where the mutable catalogue is being written (diagnostics / admin banner). */
+export function dataDirInfo(): { dir: string; writable: boolean; persistent: boolean; failedOver: boolean } {
+  const dir = activeDir();
+  return {
+    dir,
+    // Nothing probes ahead of a real write: a read-only filesystem only reveals
+    // itself when a write is refused, and that is recorded here.
+    writable: !warnedAboutWrites,
+    // The temp dir disappears with the instance; the project dir persists only
+    // where the host gives it a disk or a mounted volume.
+    persistent: !writesFailedOver,
+    failedOver: writesFailedOver,
+  };
+}
+
+/**
+ * Atomic write: tmp file + rename, so a crash never leaves a half-written DB.
+ *
+ * Never throws. A read-only deployment fails over to the temp dir; if that is
+ * refused too, the in-memory cache stays authoritative so the storefront, admin
+ * and event tracking keep working for the life of the instance instead of
+ * returning 500s.
+ */
 export function writeJson(file: string, data: unknown): void {
-  ensureDirs();
-  const target = runtimePath(file);
-  const tmp = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
-  fs.renameSync(tmp, target);
+  const payload = JSON.stringify(data, null, 2);
+
+  for (const dir of writesFailedOver ? [TMP_FALLBACK_DIR] : [RUNTIME_DIR, TMP_FALLBACK_DIR]) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const target = path.join(dir, file);
+      const tmp = `${target}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, payload, "utf8");
+      fs.renameSync(tmp, target);
+      if (dir === TMP_FALLBACK_DIR) {
+        writesFailedOver = true;
+        // Once per process: this fires on every write while the mount is read-only.
+        if (!warnedAboutFailover) {
+          warnedAboutFailover = true;
+          console.warn(
+            `[store] ${path.join(DATA_DIR, "runtime")} is not writable; using ${TMP_FALLBACK_DIR} instead. ` +
+              "Mount a volume or persistent disk at that path to keep changes across restarts — see DEPLOYMENT.md.",
+          );
+        }
+      }
+      return;
+    } catch (error) {
+      if (dir === TMP_FALLBACK_DIR && !warnedAboutWrites) {
+        warnedAboutWrites = true;
+        console.warn(
+          `[store] cannot persist ${file} (${(error as Error).message}). Serving from memory for this ` +
+            "instance. Mount a volume at src/data/runtime or attach a database — see DEPLOYMENT.md.",
+        );
+      }
+    }
+  }
 }
 
 export function getAllProducts(): Product[] {

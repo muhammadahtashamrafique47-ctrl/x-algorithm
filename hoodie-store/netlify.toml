@@ -1,0 +1,25 @@
+# Netlify — https://netlify.com (free tier, SSR supported via the Next.js runtime).
+#
+# When importing the repo, set "Base directory" to hoodie-store in the UI, or
+# rely on the `base` below. Filesystem writes only survive under /tmp, which the
+# datastore falls back to automatically.
+[build]
+  base = "hoodie-store"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
+  NODE_VERSION = "22"
+  # Inlined at build time — set to your Netlify URL or custom domain in the UI.
+  # NEXT_PUBLIC_SITE_URL = "https://your-store.netlify.app"
+
+[dev]
+  command = "npm run dev"
+  targetPort = 3000
+  autoLaunch = false
+
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
