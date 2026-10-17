@@ -34,8 +34,17 @@ Production:
 
 ```bash
 npm run build
-npm start                       # binds 0.0.0.0:3000
+npm start                       # binds dual-stack [::]:3000
 ```
+
+`npm start` runs `scripts/serve.mjs`, which binds the IPv6 wildcard `::`. With
+the Linux default `net.ipv6.bindv6only=0` that single socket is **dual-stack**,
+so it answers `::1`, `127.0.0.1` and the container's routable addresses alike.
+This matters more than it sounds: on images where `localhost` resolves to `::1`
+first, a server bound only to `0.0.0.0` refuses the proxy's connection and the
+preview reports **502 Bad Gateway** while `curl 127.0.0.1:3000` happily returns
+200. If IPv6 is unavailable the launcher falls back to `0.0.0.0`; `npm run
+start:ipv4` forces IPv4 explicitly.
 
 Other commands: `npm run typecheck` (tsc), `npm run lint`.
 
@@ -354,6 +363,11 @@ datastore — importing `node:fs` into a client graph is a hard Turbopack error.
 ---
 
 ## 12. Production hardening checklist
+
+- [ ] **Bind both IP stacks.** `npm start` binds `::` (dual-stack). An
+      IPv4-only listener silently 502s behind any proxy that resolves
+      `localhost` to `::1` first — verify with `curl -6 http://[::1]:3000/`
+      *and* `curl -4 http://127.0.0.1:3000/`.
 
 Not implemented here, deliberately, because they need accounts and secrets:
 
