@@ -48,6 +48,13 @@ start:ipv4` forces IPv4 explicitly.
 
 Other commands: `npm run typecheck` (tsc), `npm run lint`.
 
+**Put it on the internet for free:** [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmuhammadahtashamrafique47-ctrl%2Fx-algorithm%2Ftree%2Fmain%2Fhoodie-store&project-name=hoodie-store&env=NEXT_PUBLIC_SITE_URL&envDescription=Canonical%20origin%20baked%20in%20at%20build%20time%20%28your%20%2A.vercel.app%20URL%20or%20custom%20domain%29)
+
+Free Hobby tier, free `*.vercel.app` domain, HTTPS and a CDN included, no card.
+The dev/preview URL from a sandbox is temporary by nature — **[DEPLOYMENT.md](DEPLOYMENT.md)**
+covers Vercel, Netlify, Render, Docker and any VPS, what persists where, free-domain
+options, and the post-deploy SEO checklist.
+
 On the first request the seed catalogue (12 products, 10 collections, 5 guides)
 is pushed through **the same pipeline a merchant upload uses** — normalize →
 keyword research → copy generation → scoring → auto-fix — and written to

@@ -1,0 +1,29 @@
+# Render blueprint — https://render.com (free tier: spins down after 15 min idle,
+# wakes in ~30 s on the next request; no persistent disk on the free plan).
+#
+# Deploy: New → Blueprint → pick this repo. Render reads this file, and
+# `rootDir` puts it inside hoodie-store/ (the repo also holds unrelated code).
+services:
+  - type: web
+    name: hoodie-store
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: hoodie-store
+    buildCommand: npm ci --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.3
+      # Inlined at build time. Set this to your Render URL (or custom domain)
+      # before the first build so stored hreflang/OG URLs match it.
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      # The repo checkout is writable while the instance runs, so the in-repo
+      # catalogue dir works as-is; it resets on every deploy. The free plan has
+      # no persistent disk — on a paid instance attach a disk at /var/data and
+      # symlink src/data/runtime and public/uploads onto it.
