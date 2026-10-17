@@ -5,7 +5,9 @@
   "description": "AI-SEO optimized hoodie commerce platform",
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
+    "predev": "node scripts/preview-env.mjs",
     "build": "next build",
+    "prebuild": "node scripts/preview-env.mjs",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

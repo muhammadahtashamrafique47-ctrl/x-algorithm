@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ProductCard } from "@/components/ProductCard";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { getArticles } from "@/lib/store/db";
 import { findProduct } from "@/lib/commerce/catalog";
 import type { Product } from "@/lib/types";
-import { articleSchema, breadcrumbSchema } from "@/lib/seo/schema";
+import { articleSchema, breadcrumbSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME } from "@/lib/i18n/markets";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const article = getArticles().find((a) => a.slug === slug);
   if (!article) return { title: "Guide not found", robots: { index: false, follow: false } };
   return {
@@ -35,6 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+  const siteOrigin = await requestOrigin();
   const { slug } = await params;
   await ensureCatalogue();
   const article = getArticles().find((a) => a.slug === slug);
@@ -48,7 +51,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   return (
     <>
-      <JsonLd data={[articleSchema(article), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Guides", href: "/blog" }, { name: article.title, href: `/blog/${article.slug}` }])]} />
+      <JsonLd data={withOrigin(siteOrigin, () => [articleSchema(article), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Guides", href: "/blog" }, { name: article.title, href: `/blog/${article.slug}` }])])} />
 
       <article className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb" style={{ marginBottom: 18 }}>

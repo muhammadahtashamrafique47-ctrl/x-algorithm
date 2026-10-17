@@ -49,7 +49,9 @@ scratch, or use **Admin → Reset demo data**.
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical origin for sitemap, hreflang, JSON-LD, OG tags |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin used when seeding/optimizing listings (stored in hreflang + localizations). **Inlined at build time** — set it before `npm run build`. Falls back to `https://northloop.example`, never `localhost` |
+| `FRAME_ANCESTORS` | Space-separated origins allowed to embed the site in an iframe → emitted as `Content-Security-Policy: frame-ancestors` (default `'self' https://*.e2b.app`) |
+| `ALLOW_HTTP_ORIGIN` | `1` to honour an `x-forwarded-proto: http` hop on a public hostname (default: public hosts are always https) |
 | `NEXT_PUBLIC_BRAND_NAME` / `NEXT_PUBLIC_BRAND_SHORT` | Brand in copy; short form used in title tags |
 | `NEXT_PUBLIC_MARKET_LOCALES` | Locales you actually serve → drives hreflang alternates |
 | `NEXT_PUBLIC_SUPPORT_EMAIL` | Contact + Organization schema |
@@ -57,6 +59,43 @@ scratch, or use **Admin → Reset demo data**.
 | `SEO_AI_API_KEY`, `SEO_AI_MODEL`, `SEO_AI_BASE_URL`, `SEO_AI_TIMEOUT_MS` | Cloud refinement stage |
 | `SEO_MIN_CONTENT_WORDS` | Minimum body depth the rubric accepts (default 320) |
 | `SEO_AUTO_OPTIMIZE_ON_CREATE` | Optimize on upload without asking (default true) |
+
+### Origins & embedding
+
+Every absolute URL the site emits — canonical, hreflang cluster, `og:url`,
+`og:image`, `twitter:image`, JSON-LD `@id`/`url`/`image`, `sitemap.xml`,
+`robots.txt` (`Host:` + `Sitemap:`), the product feed and the web app manifest —
+is resolved per request by `src/lib/request-origin.ts`:
+
+1. the configured `NEXT_PUBLIC_SITE_URL` wins when it already points at the host
+   this request arrived on (it carries the scheme the operator intended);
+2. otherwise the `x-forwarded-host`/`host` header is used, over **https** for
+   public hostnames (a bare `x-forwarded-proto: http` is normally just the local
+   proxy hop);
+3. loopback hosts and a missing request scope fall back to `SITE_URL`.
+
+Two consequences worth knowing:
+
+- **`localhost` never appears in output.** An absolute `http://localhost:3000`
+  in a canonical or OG image resolves against whoever is *viewing* the page, so
+  it silently breaks previews, tunnels and social cards. The old default did
+  exactly that; the fallback is now a real hostname.
+- **Stored hreflang URLs are rebased at render time.** SEO profiles persist
+  absolute alternates, so if the host changes after a listing was optimized,
+  `rebase()` rewrites them onto the live origin instead of leaking a dead host.
+
+`scripts/preview-env.mjs` (wired as `predev`/`prebuild`) writes the sandbox
+preview origin into `.env.local` when `E2B_SANDBOX_ID` is set, because
+`NEXT_PUBLIC_*` values are frozen at build time and the preview host changes
+whenever the sandbox is recycled. It is a no-op elsewhere and never overwrites a
+configured real domain.
+
+Clickjacking protection is expressed as
+`Content-Security-Policy: frame-ancestors` rather than `X-Frame-Options`, which
+cannot allowlist other origins and therefore made the site unrenderable inside
+any cross-origin preview or staging wrapper. Only `frame-ancestors` is sent: a
+full CSP with `script-src` would break Next.js inline hydration scripts.
+
 
 ---
 

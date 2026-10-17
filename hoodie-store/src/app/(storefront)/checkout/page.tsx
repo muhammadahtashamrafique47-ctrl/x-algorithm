@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckoutForm } from "@/components/CheckoutForm";
 import { JsonLd } from "@/components/JsonLd";
-import { breadcrumbSchema } from "@/lib/seo/schema";
+import { requestOrigin } from "@/lib/request-origin";
+import { breadcrumbSchema, withOrigin } from "@/lib/seo/schema";
 
 export const metadata: Metadata = {
   title: "Secure checkout",
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/checkout" },
 };
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  const siteOrigin = await requestOrigin();
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Bag", href: "/cart" }, { name: "Checkout", href: "/checkout" }])} />

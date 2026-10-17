@@ -57,6 +57,10 @@ export async function reseedCatalogue(): Promise<{ products: number }> {
   saveCollections(SEED_COLLECTIONS);
   saveArticles(SEED_ARTICLES);
   const result = await ensureCatalogue();
+  // The rebuild above wrote every file through the cache; drop it once more so
+  // the next request re-reads the freshly written data instead of any snapshot
+  // taken while the wipe was in flight (stale hreflang URLs were served this way).
+  invalidateCache();
   return { products: result.products };
 }
 

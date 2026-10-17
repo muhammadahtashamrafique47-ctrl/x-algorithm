@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CartTable } from "@/components/CartTable";
 import { JsonLd } from "@/components/JsonLd";
-import { breadcrumbSchema } from "@/lib/seo/schema";
+import { requestOrigin } from "@/lib/request-origin";
+import { breadcrumbSchema, withOrigin } from "@/lib/seo/schema";
 
 export const metadata: Metadata = {
   title: "Your bag",
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/cart" },
 };
 
-export default function CartPage() {
+export default async function CartPage() {
+  const siteOrigin = await requestOrigin();
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Bag", href: "/cart" }])} />

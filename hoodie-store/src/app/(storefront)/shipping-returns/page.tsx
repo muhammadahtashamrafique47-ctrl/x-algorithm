@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
-import { breadcrumbSchema, faqSchema } from "@/lib/seo/schema";
+import { requestOrigin } from "@/lib/request-origin";
+import { breadcrumbSchema, faqSchema, withOrigin } from "@/lib/seo/schema";
 import { MARKETS, SUPPORT_EMAIL } from "@/lib/i18n/markets";
 
 export const metadata: Metadata = {
@@ -54,14 +55,15 @@ const FAQ = [
   },
 ];
 
-export default function ShippingReturnsPage() {
+export default async function ShippingReturnsPage() {
+  const siteOrigin = await requestOrigin();
   return (
     <>
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Shipping & returns", href: "/shipping-returns" }]),
           faqSchema(FAQ),
-        ]}
+        ])}
       />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">

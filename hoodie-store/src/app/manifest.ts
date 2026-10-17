@@ -1,7 +1,11 @@
 import type { MetadataRoute } from "next";
-import { BRAND_NAME, SITE_URL } from "@/lib/i18n/markets";
+import { BRAND_NAME } from "@/lib/i18n/markets";
+import { requestOrigin } from "@/lib/request-origin";
 
-export default function manifest(): MetadataRoute.Manifest {
+export const dynamic = "force-dynamic";
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const siteOrigin = await requestOrigin();
   return {
     name: `${BRAND_NAME} — Heavyweight Hoodies`,
     short_name: BRAND_NAME,
@@ -24,6 +28,6 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     related_applications: [],
     prefer_related_applications: false,
-    id: SITE_URL,
+    id: siteOrigin,
   };
 }

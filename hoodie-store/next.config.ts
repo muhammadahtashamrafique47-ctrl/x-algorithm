@@ -28,7 +28,13 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // X-Frame-Options cannot express "allow these other origins", and
+          // SAMEORIGIN makes the site unrenderable inside a preview iframe or a
+          // staging wrapper. frame-ancestors is the modern, expressive form.
+          {
+            key: "Content-Security-Policy",
+            value: `frame-ancestors 'self' ${process.env.FRAME_ANCESTORS ?? "https://*.e2b.app"}`,
+          },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
         ],

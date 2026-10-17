@@ -15,16 +15,38 @@ import { inventoryHealth } from "@/lib/seo/internal";
  *  - Editorial (Article)
  */
 
-const absolute = (href: string) => (href.startsWith("http") ? href : `${SITE_URL}${href}`);
+/**
+ * Origin override for the current render.
+ *
+ * JSON-LD must carry absolute URLs, but the canonical origin is a deploy-time
+ * constant while a preview/staging host is discovered per request. Callers that
+ * know the real origin wrap their builders in `withOrigin`; everything else
+ * falls back to the configured base().
+ */
+let originOverride: string | null = null;
+
+export function withOrigin<T>(origin: string, build: () => T): T {
+  const previous = originOverride;
+  originOverride = origin;
+  try {
+    return build();
+  } finally {
+    originOverride = previous;
+  }
+}
+
+const base = (): string => originOverride ?? SITE_URL;
+
+const absolute = (href: string) => (href.startsWith("http") ? href : `${base()}${href}`);
 
 export function organizationSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": `${SITE_URL}/#organization`,
+    "@id": `${base()}/#organization`,
     name: BRAND_NAME,
-    url: SITE_URL,
-    logo: `${SITE_URL}/brand/logo.png`,
+    url: base(),
+    logo: `${base()}/brand/logo.png`,
     description: `${BRAND_NAME} designs heavyweight hoodies and fleece layers sold worldwide.`,
     email: SUPPORT_EMAIL,
     sameAs: [
@@ -48,15 +70,15 @@ export function websiteSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "@id": `${SITE_URL}/#website`,
-    url: SITE_URL,
+    "@id": `${base()}/#website`,
+    url: base(),
     name: BRAND_NAME,
     description: "Heavyweight hoodies and fleece layers, shipped worldwide.",
     inLanguage: DEFAULT_LOCALE,
-    publisher: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${base()}/#organization` },
     potentialAction: {
       "@type": "SearchAction",
-      target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/search?q={search_term_string}` },
+      target: { "@type": "EntryPoint", urlTemplate: `${base()}/search?q={search_term_string}` },
       "query-input": "required name=search_term_string",
     },
   };
@@ -105,7 +127,7 @@ export function productSchema(product: Product) {
     availability,
     itemCondition: "https://schema.org/NewCondition",
     eligibleQuantity: { "@type": "QuantitativeValue", value: Math.max(1, stock.total) },
-    seller: { "@id": `${SITE_URL}/#organization` },
+    seller: { "@id": `${base()}/#organization` },
     shippingDetails: {
       "@type": "OfferShippingDetails",
       shippingRate: {
@@ -210,7 +232,7 @@ export function collectionPageSchema(collection: Collection, products: Product[]
     name: collection.seoTitle || collection.name,
     description: collection.metaDescription || collection.description,
     url: absolute(`/collections/${collection.slug}`),
-    isPartOf: { "@id": `${SITE_URL}/#website` },
+    isPartOf: { "@id": `${base()}/#website` },
     about: collection.keywords.slice(0, 6).map((k) => ({ "@type": "Thing", name: k })),
     mainEntity: itemListSchema(collection.name, products.map((p) => ({ name: p.title, href: `/shop/${p.slug}` }))),
   };
@@ -226,7 +248,7 @@ export function articleSchema(article: Article) {
     dateModified: article.updatedAt,
     datePublished: article.updatedAt,
     author: { "@type": "Person", name: article.author },
-    publisher: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${base()}/#organization` },
     keywords: article.targetKeywords.join(", "),
     articleSection: "Hoodie guides",
     wordCount: article.body.reduce((s, b) => s + b.paragraphs.join(" ").split(/\s+/).length, 0),

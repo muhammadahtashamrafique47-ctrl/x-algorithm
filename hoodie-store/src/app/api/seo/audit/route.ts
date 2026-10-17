@@ -3,7 +3,7 @@ import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { runSiteAudit } from "@/lib/seo/audit";
 import { aiStatus } from "@/lib/seo/ai/provider";
 import { ALGORITHM_FACTORS } from "@/lib/seo/external";
-import { SITE_URL } from "@/lib/i18n/markets";
+import { requestOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +13,14 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const url = new URL(request.url);
   const audit = runSiteAudit();
   const format = url.searchParams.get("format");
 
   if (format === "text") {
     const lines = [
-      `SEO AUDIT — ${SITE_URL}`,
+      `SEO AUDIT — ${siteOrigin}`,
       `Generated ${audit.generatedAt}`,
       `Site score: ${audit.score}/100 (${audit.grade})`,
       "",

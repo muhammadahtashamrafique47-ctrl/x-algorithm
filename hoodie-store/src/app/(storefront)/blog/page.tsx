@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { getArticles } from "@/lib/store/db";
-import { breadcrumbSchema, itemListSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, itemListSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME } from "@/lib/i18n/markets";
 
 export const metadata: Metadata = {
@@ -15,15 +16,16 @@ export const metadata: Metadata = {
 
 export default async function BlogIndex() {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const articles = getArticles().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return (
     <>
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Guides", href: "/blog" }]),
           itemListSchema("Hoodie buying guides", articles.map((a) => ({ name: a.title, href: `/blog/${a.slug}` }))),
-        ]}
+        ])}
       />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">

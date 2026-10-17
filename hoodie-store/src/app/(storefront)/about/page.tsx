@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { publishedProducts } from "@/lib/commerce/catalog";
-import { breadcrumbSchema, organizationSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, organizationSchema, withOrigin } from "@/lib/seo/schema";
 import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/i18n/markets";
 
 export const metadata: Metadata = {
@@ -16,13 +17,14 @@ export const metadata: Metadata = {
 
 export default async function AboutPage() {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const products = publishedProducts();
   const averageRating = products.length ? products.reduce((s, p) => s + p.rating, 0) / products.length : 0;
   const reviews = products.reduce((s, p) => s + p.reviewCount, 0);
 
   return (
     <>
-      <JsonLd data={[organizationSchema(), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "About", href: "/about" }])]} />
+      <JsonLd data={withOrigin(siteOrigin, () => [organizationSchema(), breadcrumbSchema([{ name: "Home", href: "/" }, { name: "About", href: "/about" }])])} />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link> <span aria-hidden="true">/</span>

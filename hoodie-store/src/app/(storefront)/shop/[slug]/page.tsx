@@ -6,27 +6,31 @@ import { BuyBox } from "@/components/BuyBox";
 import { Tabs } from "@/components/Tabs";
 import { ProductCard } from "@/components/ProductCard";
 import { JsonLd } from "@/components/JsonLd";
+import { rebase, requestOrigin } from "@/lib/request-origin";
 import {
   CareBlock, DescriptionBlock, FaqBlock, GlobalPricingBlock, ReviewsBlock, SizeBlock, SpecsBlock,
 } from "@/components/ProductBlocks";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { findProduct, productCollections, relatedProducts } from "@/lib/commerce/catalog";
-import { itemListSchema, productPageSchemas } from "@/lib/seo/schema";
+import { itemListSchema, productPageSchemas, withOrigin } from "@/lib/seo/schema";
 import { SERVED_LOCALES, SITE_URL } from "@/lib/i18n/markets";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const product = findProduct(slug);
   if (!product) return { title: "Product not found", robots: { index: false, follow: false } };
 
   const seo = product.seo;
   const image = product.images[0]?.src ?? "/images/site/hero.jpg";
+  // Stored hreflang URLs are absolute from the run that generated them; rebase
+  // them so a host change (or a first run without env config) never leaks a stale origin.
   const languages: Record<string, string> = {};
   for (const entry of seo?.hreflang ?? []) {
-    languages[entry.locale] = entry.href;
+    languages[entry.locale] = rebase(entry.href, siteOrigin);
   }
-  if (!languages["x-default"]) languages["x-default"] = `${SITE_URL}/shop/${product.slug}`;
+  if (!languages["x-default"]) languages["x-default"] = `${siteOrigin}/shop/${product.slug}`;
 
   return {
     title: seo?.seoTitle || product.title,
@@ -65,6 +69,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const siteOrigin = await requestOrigin();
   const { slug } = await params;
   await ensureCatalogue();
   const product = findProduct(slug);
@@ -78,7 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <JsonLd
-        data={[
+        data={withOrigin(siteOrigin, () => [
           ...productPageSchemas(product),
           related.length
             ? itemListSchema(
@@ -86,7 +91,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 related.map((item) => ({ name: item.title, href: `/shop/${item.slug}` })),
               )
             : null,
-        ]}
+        ])}
       />
 
       <div className="container section-tight">

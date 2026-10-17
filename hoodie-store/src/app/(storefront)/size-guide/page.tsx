@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
+import { requestOrigin } from "@/lib/request-origin";
 import { ensureCatalogue } from "@/lib/store/bootstrap";
 import { publishedProducts } from "@/lib/commerce/catalog";
-import { breadcrumbSchema, faqSchema } from "@/lib/seo/schema";
+import { breadcrumbSchema, faqSchema, withOrigin } from "@/lib/seo/schema";
 
 export const metadata: Metadata = {
   title: "Hoodie Size Guide — Fit Types, Measurements and How to Choose",
@@ -52,11 +53,12 @@ const FAQ = [
 
 export default async function SizeGuidePage() {
   await ensureCatalogue();
+  const siteOrigin = await requestOrigin();
   const products = publishedProducts();
 
   return (
     <>
-      <JsonLd data={[breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Size guide", href: "/size-guide" }]), faqSchema(FAQ)]} />
+      <JsonLd data={withOrigin(siteOrigin, () => [breadcrumbSchema([{ name: "Home", href: "/" }, { name: "Size guide", href: "/size-guide" }]), faqSchema(FAQ)])} />
       <div className="container section-tight">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link> <span aria-hidden="true">/</span>
