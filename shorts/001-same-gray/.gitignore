@@ -1,0 +1,7 @@
+# regenerable build intermediates (see render/audio.py)
+audio/music_bed.wav
+audio/sfx_track.wav
+audio/vo_master.wav
+render/vo_master.npy
+render/_probe.wav
+__pycache__/
